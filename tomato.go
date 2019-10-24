@@ -14,13 +14,13 @@ const (
 	tomatoFileExtension = ".htmto"
 )
 
-func GenerateTomatoes(root string, outFile string, language Language, qImport string, forceDebugIds bool) error {
-	files, err := collectTomatoFiles(root)
+func GenerateTomatoes(viewDir string, outFile string, language Language, opts *GeneratorOptions, forceDebugIds bool) error {
+	files, err := collectTomatoFiles(viewDir)
 	if err != nil {
 		return err
 	}
 
-	generator, err := MakeTomatoGenerator(root, language, qImport)
+	generator, err := MakeTomatoGenerator(language, opts)
 	if err != nil {
 		return err
 	}

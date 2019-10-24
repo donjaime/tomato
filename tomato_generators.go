@@ -47,9 +47,10 @@ type View struct {
 	CssText  string
 }
 
-type generatorData struct {
-	root    string
-	qImport string
+type GeneratorOptions struct {
+	ViewBaseClass  string
+	ViewFactory    string
+	ImportLocation string
 }
 
 type viewGenerator interface {
@@ -71,6 +72,8 @@ type viewGenerator interface {
 }
 
 type visitorData struct {
+	*GeneratorOptions
+
 	cssText         string
 	viewName        string
 	output          stringBuilder
@@ -82,11 +85,11 @@ type visitorData struct {
 }
 
 // Factory method for obtaining a TomatoGenerator
-func MakeTomatoGenerator(root string, language Language, qImport string) (TomatoGenerator, error) {
-	// TODO(jaime): Support the other languages that pork supports. Someday over the rainbow.
+func MakeTomatoGenerator(language Language, opts *GeneratorOptions) (TomatoGenerator, error) {
+	// TODO(jaime): Support the other languages. Someday over the rainbow.
 	switch language {
 	case TypeScript:
-		return &typeScriptGenerator{generatorData{root, qImport}}, nil
+		return &typeScriptGenerator{opts}, nil
 	default:
 		return nil, errors.New("Language not supported")
 	}
@@ -111,12 +114,16 @@ type typeScriptVisitor struct {
 }
 
 type typeScriptGenerator struct {
-	generatorData //inherits
+	*GeneratorOptions //inherits
 }
 
 func (g *typeScriptGenerator) EmitPreamble(buffer *bytes.Buffer) {
-	buffer.WriteString("import { OfOne, createOne } from '")
-	buffer.WriteString(g.qImport)
+	buffer.WriteString("import { ")
+	buffer.WriteString(g.ViewBaseClass)
+	buffer.WriteString(", ")
+	buffer.WriteString(g.ViewFactory)
+	buffer.WriteString(" } from '")
+	buffer.WriteString(g.ImportLocation)
 	buffer.WriteString("';")
 }
 
@@ -139,8 +146,9 @@ func (g *typeScriptGenerator) GenerateViews(files *list.List, forceDebugIds bool
 func (*typeScriptGenerator) EmitPostamble(buffer *bytes.Buffer) {
 }
 
-func (*typeScriptGenerator) generateView(fileName string, forceDebugIds bool) (string, string, error) {
+func (g *typeScriptGenerator) generateView(fileName string, forceDebugIds bool) (string, string, error) {
 	visitor := typeScriptVisitor{visitorData{
+		GeneratorOptions: g.GeneratorOptions,
 		forceDebugIds: forceDebugIds,
 		viewName:      getViewName(fileName),
 	}}
@@ -167,7 +175,7 @@ func (v *typeScriptVisitor) head(node *html.Node, depth int) error {
 		if depth == 0 {
 
 			// This is the first part of the view (call to super constructor).
-			v.domConstruction.append("super(document.createElement('").append(tagName).append("'));\n").append(indent(depth)).append("this")
+			v.domConstruction.append("super(doc.createElement('").append(tagName).append("'));\n").append(indent(depth)).append("this")
 
 			// Include debug IDs if we force them to.
 			if v.forceDebugIds && !hasAttr(node, DebugIdAttr) {
@@ -195,14 +203,14 @@ func (v *typeScriptVisitor) head(node *html.Node, depth int) error {
 					return errors.New("Tomato element with no 'src' attribute!")
 				}
 				viewName := getViewName(src)
-				v.domConstruction.append("<").append(viewName).append(">new ").append(viewName).append("()")
+				v.domConstruction.append("<").append(viewName).append(">new ").append(viewName).append("(doc)")
 				if hasFieldName {
 					v.refs.PushBack(fieldName + ": " + viewName)
 				}
 			} else {
-				v.domConstruction.append("createOne('").append(tagName).append("')")
+				v.domConstruction.append(v.ViewFactory).append("('").append(tagName).append("', doc)")
 				if hasFieldName {
-					v.refs.PushBack(fieldName + ": OfOne")
+					v.refs.PushBack(fieldName + ": " + v.ViewBaseClass)
 				}
 			}
 		}
@@ -248,7 +256,7 @@ func (v *typeScriptVisitor) getCss() string {
 }
 
 func (v *typeScriptVisitor) emitPreamble() {
-	v.output.append("\nexport class ").append(v.viewName).append(" extends OfOne {")
+	v.output.append("\nexport class ").append(v.viewName).append(" extends ").append(v.ViewBaseClass).append(" {")
 }
 
 func (v *typeScriptVisitor) emitElementRefs() {
@@ -262,7 +270,7 @@ func (v *typeScriptVisitor) emitElementRefs() {
 }
 
 func (v *typeScriptVisitor) emitDomConstruction() {
-	v.output.append("\n  constructor() {")
+	v.output.append("\n  constructor(doc: Document = document) {")
 	v.output.append(v.domConstruction.buffer.String())
 	v.output.append(";\n  }")
 }
