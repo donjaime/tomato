@@ -39,7 +39,8 @@ export class View {
   }
 
   hasFocus(): boolean {
-    return this.e.ownerDocument.activeElement == this.e;
+    let doc = this.e.ownerDocument || document;
+    return doc.activeElement == this.e;
   }
 
   contains(q: Node | View): boolean {
@@ -183,7 +184,8 @@ export class View {
   }
 
   appendText(text: string): View {
-    append(this.e, this.e.ownerDocument.createTextNode(text));
+    let doc = this.e.ownerDocument || document;
+    append(this.e, doc.createTextNode(text));
     return this
   }
 
