@@ -191,7 +191,7 @@ func (v *typeScriptVisitor) head(node *html.Node, depth int) error {
 			fieldName := getAttr(node, FieldRefAttr)
 			hasFieldName := (fieldName != "")
 			if hasFieldName {
-				v.domConstruction.append("this.").append(fieldName).append("=")
+				v.domConstruction.append("this.").append(fieldName).append(" = ")
 			}
 
 			// Construct raw elements differently from nested tomato templates
@@ -264,7 +264,7 @@ func (v *typeScriptVisitor) emitElementRefs() {
 		fieldDecl := e.Value.(string)
 		v.output.append("\n  ").append(fieldDecl).append(";")
 		if e == v.refs.Back() {
-			v.output.append("\n  ")
+			v.output.append("\n")
 		}
 	}
 }
