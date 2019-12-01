@@ -2,6 +2,15 @@ export function createView(t: string, doc: Document = document): View {
   return new View(doc.createElement(t));
 }
 
+export function selectView(sel: string): View {
+  const e = document.querySelector(sel);
+  return e ? new View(e as HTMLElement) : null;
+}
+
+export function body(): View {
+  return new View(document.body);
+}
+
 /**
  * View interface for all tomato templates.
  * Thin wrapper around an HTMLElement with some sugar around standard DOM apis.
