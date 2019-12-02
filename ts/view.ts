@@ -2,7 +2,7 @@ export function createView(t: string, doc: Document = document): View {
   return new View(doc.createElement(t));
 }
 
-export function selectView(sel: string): View {
+export function selectView(sel: string): View | null {
   const e = document.querySelector(sel);
   return e ? new View(e as HTMLElement) : null;
 }
