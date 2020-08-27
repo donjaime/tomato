@@ -57,6 +57,31 @@ func collectTomatoFiles(root string) (*list.List, error) {
 	}
 }
 
+func existingFileContentMatches(filename string, expectedData []byte) bool {
+	actualData, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return false // If we couldn't read the file, it doesn't match.
+	}
+
+	if len(expectedData) != len(actualData) {
+		return false // If the number of bytes differs, we know it doesn't match.
+	}
+
+	// Perform an actual byte-wise comparison.
+	return bytes.Compare(expectedData, actualData) == 0
+}
+
+// Write the provided data to the given file *only* if it would change the
+// file's content. This ensures that we don't update the mtime of the file
+// uselessly, which might otherwise cause the build system to rebuild reverse
+// dependencies of this file unnecessarily.
+func writeFileIfChanged(filename string, data []byte, perm os.FileMode) error {
+	if existingFileContentMatches(filename, data) {
+		return nil
+	}
+	return ioutil.WriteFile(filename, data, perm)
+}
+
 // Write the generated views to a file. This file should never ever be more than
 // on the order of a few thousand lines, so it lives all in memory.
 func writeTomatoOutput(outFile string, views map[string]*View, generator TomatoGenerator) error {
@@ -94,9 +119,9 @@ func writeTomatoOutput(outFile string, views map[string]*View, generator TomatoG
 	// Dump an associated Css file.
 	css := cssText.String()
 	cssOutFile := string(outFile[:strings.LastIndex(outFile, ".")]) + ".scss"
-	if err := ioutil.WriteFile(cssOutFile, []byte(css), 0644); err != nil {
+	if err := writeFileIfChanged(cssOutFile, []byte(css), 0644); err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(outFile, viewText.Bytes(), 0644)
+	return writeFileIfChanged(outFile, viewText.Bytes(), 0644)
 }
